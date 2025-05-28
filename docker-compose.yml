@@ -2,12 +2,13 @@ version: '3.8'
 
 services:
   database:
-    image: postgres:17
+    image: postgres:15
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: secret
       POSTGRES_DB: lab3_products
     volumes:
+      - ./src/app/database:/app/data-out
       - pgdata:/var/lib/postgresql/data
     ports:
       - "5432:5432"
@@ -16,7 +17,6 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
-
   backend:
     build: .
     environment:
@@ -25,9 +25,12 @@ services:
       DB_USER: postgres
       DB_PASSWORD: secret
       DB_NAME: lab3_products
+      PGPASSWORD: secret
     depends_on:
       database:
         condition: service_healthy
+    volumes:
+      - ./src/app/database:/app/data-out
     ports:
       - "8080:8080"
     restart: on-failure

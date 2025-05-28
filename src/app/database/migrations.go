@@ -17,7 +17,7 @@ func Migrate(db *gorm.DB) error {
 
         DO $$
         BEGIN
-            CREATE DOMAIN nombre_categoria AS VARCHAR(50) CHECK (VALUE ~* '^[a-zA-Z0-9 ]+$');
+            CREATE DOMAIN nombre_categoria AS VARCHAR(50) CHECK (VALUE ~* '^[a-zA-Z0-9 \u00C0-\u00FF]+$');
         END$$;`).Error; err != nil {
 		return err
 	}
