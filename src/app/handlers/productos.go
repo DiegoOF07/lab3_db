@@ -2,8 +2,8 @@ package handlers
 
 import (
 	"net/http"
+	"time"
 
-	"lab3/src/app/database"
 	"lab3/src/app/models"
 
 	"github.com/gin-gonic/gin"
@@ -163,23 +163,122 @@ func CreateProducto(c *gin.Context, db *gorm.DB) {
 	c.JSON(http.StatusCreated, responseProducto)
 }
 
-func UpdateProducto(c *gin.Context) {
+func UpdateProducto(c *gin.Context, db *gorm.DB) {
 	id := c.Param("id")
-	var prod models.Producto
-	if err := database.DB.First(&prod, id).Error; err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "no encontrado"})
-		return
+
+	var productoInput struct {
+		Nombre      string   `json:"nombre"`
+		Precio      float64  `json:"precio"`
+		Descripcion string   `json:"descripcion"`
+		Estado      string   `json:"estado"`
+		CategoriaIDs []uint  `json:"categoria_ids"`
 	}
-	if err := c.ShouldBindJSON(&prod); err != nil {
+
+	if err := c.ShouldBindJSON(&productoInput); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
-	database.DB.Save(&prod)
-	c.JSON(http.StatusOK, prod)
+
+	tx := db.Begin()
+	defer func() {
+		if r := recover(); r != nil {
+			tx.Rollback()
+		}
+	}()
+
+	var producto models.Producto
+	if err := tx.First(&producto, id).Error; err != nil {
+		tx.Rollback()
+		c.JSON(http.StatusNotFound, gin.H{"error": "Producto no encontrado"})
+		return
+	}
+
+	if productoInput.Nombre != "" {
+		producto.Nombre = productoInput.Nombre
+	}
+	if productoInput.Precio != 0 {
+		producto.Precio = productoInput.Precio
+	}
+	if productoInput.Descripcion != "" {
+		producto.Descripcion = productoInput.Descripcion
+	}
+	if productoInput.Estado != "" {
+		estado := models.EstadoProducto(productoInput.Estado)
+		if estado == models.Disponible || estado == models.Agotado || estado == models.Discontinuado {
+			producto.Estado = estado
+		}
+	}
+
+	producto.UpdatedAt = time.Now()
+
+	if err := tx.Save(&producto).Error; err != nil {
+		tx.Rollback()
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Error al actualizar producto"})
+		return
+	}
+
+	if productoInput.CategoriaIDs != nil {
+		if err := tx.Exec("DELETE FROM productos_categorias WHERE producto_id = ?", id).Error; err != nil {
+			tx.Rollback()
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Error al actualizar categorías"})
+			return
+		}
+
+		for _, catID := range productoInput.CategoriaIDs {
+			var categoria models.Categoria
+			if err := tx.First(&categoria, catID).Error; err != nil {
+				tx.Rollback()
+				c.JSON(http.StatusBadRequest, gin.H{"error": "Categoría no encontrada"})
+				return
+			}
+
+			if err := tx.Exec("INSERT INTO productos_categorias (producto_id, categoria_id) VALUES (?, ?)", id, catID).Error; err != nil {
+				tx.Rollback()
+				c.JSON(http.StatusInternalServerError, gin.H{"error": "Error al asociar categoría"})
+				return
+			}
+		}
+	}
+
+	tx.Commit()
+
+	var productoView []models.ProductoCategoriaView
+	if err := db.Table("vista_producto_categoria").Where("producto_id = ?", id).Find(&productoView).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Error al obtener el producto actualizado"})
+		return
+	}
+
+	responseProducto := models.Producto{
+		ID:          productoView[0].ProductoID,
+		Nombre:      productoView[0].ProductoNombre,
+		Precio:      productoView[0].Precio,
+		Descripcion: productoView[0].ProductoDescripcion,
+		Estado:      productoView[0].ProductoEstado,
+	}
+
+	for _, pv := range productoView {
+		responseProducto.Categorias = append(responseProducto.Categorias, &models.Categoria{
+			ID:     pv.CategoriaID,
+			Nombre: pv.CategoriaNombre,
+		})
+	}
+
+	c.JSON(http.StatusOK, responseProducto)
 }
 
-func DeleteProducto(c *gin.Context) {
+func DeleteProducto(c *gin.Context, db *gorm.DB) {
 	id := c.Param("id")
-	database.DB.Delete(&models.Producto{}, id)
-	c.Status(http.StatusNoContent)
+
+	result := db.Delete(&models.Producto{}, id)
+	if result.Error != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Error al eliminar producto"})
+		return
+	}
+
+	if result.RowsAffected == 0 {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Producto no encontrado"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "Producto eliminado correctamente"})
 }

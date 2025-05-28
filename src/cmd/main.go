@@ -87,13 +87,6 @@ func setupRouter(db *gorm.DB) *gin.Engine {
 		AllowCredentials: true,
 	}))
 
-	// Rutas Categorías
-	// r.GET("/categorias", handlers.GetCategorias)
-	// r.POST("/categorias", handlers.CreateCategoria)
-	// r.PUT("/categorias/:id", handlers.UpdateCategoria)
-	// r.DELETE("/categorias/:id", handlers.DeleteCategoria)
-
-	// Rutas Productos
 	router.GET("/productos", func(c *gin.Context) {
 		handlers.GetProductos(c, db)
 	})
@@ -103,8 +96,11 @@ func setupRouter(db *gorm.DB) *gin.Engine {
 	router.POST("/productos", func(c *gin.Context) {
 		handlers.CreateProducto(c, db)
 	})
-	// r.PUT("/productos/:id", handlers.UpdateProducto)
-	// r.DELETE("/productos/:id", handlers.DeleteProducto)
-
+	router.PUT("/productos/:id", func(c *gin.Context) {
+		handlers.UpdateProducto(c, db)
+	})
+	router.DELETE("/productos/:id", func(c *gin.Context) {
+		handlers.DeleteProducto(c, db)
+	})
 	return router
 }
