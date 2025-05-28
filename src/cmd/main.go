@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"lab3/src/app/database"
+	"lab3/src/app/handlers"
 	"log"
 	"os"
 	"os/exec"
@@ -10,6 +11,7 @@ import (
 
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
+	"gorm.io/gorm"
 )
 
 const backupFile = "/app/data-out/schema.sql"
@@ -41,7 +43,7 @@ func main() {
 		log.Fatalf("Error al sembrar datos: %v", err)
 	}
 
-	router := setupRouter()
+	router := setupRouter(DB)
 	router.Run(":8080")
 }
 
@@ -75,7 +77,7 @@ func runPgDump(user, host, dbname, outFile string) error {
 	return nil
 }
 
-func setupRouter() *gin.Engine {
+func setupRouter(db *gorm.DB) *gin.Engine {
 	router := gin.Default()
 	router.Use(cors.New(cors.Config{
 		AllowOrigins:     []string{"*"},
@@ -92,8 +94,15 @@ func setupRouter() *gin.Engine {
 	// r.DELETE("/categorias/:id", handlers.DeleteCategoria)
 
 	// Rutas Productos
-	// r.GET("/productos", handlers.GetProductos)
-	// r.POST("/productos", handlers.CreateProducto)
+	router.GET("/productos", func(c *gin.Context) {
+		handlers.GetProductos(c, db)
+	})
+	router.GET("/productos/:id", func(c *gin.Context) {
+		handlers.GetProducto(c, db)
+	})
+	router.POST("/productos", func(c *gin.Context) {
+		handlers.CreateProducto(c, db)
+	})
 	// r.PUT("/productos/:id", handlers.UpdateProducto)
 	// r.DELETE("/productos/:id", handlers.DeleteProducto)
 
