@@ -48,5 +48,19 @@ func Migrate(db *gorm.DB) error {
 		return err
 	}
 
+	if err := db.Exec(`
+		CREATE OR REPLACE VIEW vista_categorias_completa AS
+		SELECT 
+			id,
+			nombre,
+			created_at,
+			updated_at,
+			deleted_at
+		FROM categorias
+		WHERE deleted_at IS NULL;
+	`).Error; err != nil {
+		return err
+	}
+
 	return nil
 }

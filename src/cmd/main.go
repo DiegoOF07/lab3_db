@@ -102,5 +102,8 @@ func setupRouter(db *gorm.DB) *gin.Engine {
 	router.DELETE("/productos/:id", func(c *gin.Context) {
 		handlers.DeleteProducto(c, db)
 	})
+	router.GET("/categorias", func(c *gin.Context) {
+		handlers.GetCategorias(c, db)
+	})
 	return router
 }

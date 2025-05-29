@@ -131,6 +131,22 @@ ALTER SEQUENCE public.productos_id_seq OWNED BY public.productos.id;
 
 
 --
+-- Name: vista_categorias_completa; Type: VIEW; Schema: public; Owner: postgres
+--
+
+CREATE VIEW public.vista_categorias_completa AS
+ SELECT categorias.id,
+    categorias.nombre,
+    categorias.created_at,
+    categorias.updated_at,
+    categorias.deleted_at
+   FROM public.categorias
+  WHERE (categorias.deleted_at IS NULL);
+
+
+ALTER TABLE public.vista_categorias_completa OWNER TO postgres;
+
+--
 -- Name: vista_producto_categoria; Type: VIEW; Schema: public; Owner: postgres
 --
 
